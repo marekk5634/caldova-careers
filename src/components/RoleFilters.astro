@@ -1,0 +1,53 @@
+---
+interface Props {
+    /** Department names to offer as filter options. */
+    departments: string[];
+    /** Location regions to offer as filter options. */
+    regions: string[];
+}
+
+const { departments, regions } = Astro.props;
+const groups = [
+    { name: 'department', legend: 'Department', options: departments },
+    { name: 'location', legend: 'Location', options: regions },
+];
+---
+
+<form
+    id="role-filters-form"
+    data-testid="role-filters"
+    class="mb-8 grid gap-6 sm:grid-cols-2 bg-slate-800/60 border border-slate-700/50 rounded-xl p-6"
+    aria-label="Filter roles"
+>
+    {
+        groups.map((group) => (
+            <fieldset data-testid={`${group.name}-filter`} class="min-w-0">
+                <legend class="text-sm font-semibold text-slate-100 mb-3">{group.legend}</legend>
+                <div class="flex flex-wrap gap-2">
+                    {group.options.map((option) => (
+                        <label class="inline-flex items-center gap-2 rounded-full border border-slate-600 bg-slate-900/40 px-3 py-1 text-sm text-slate-200 cursor-pointer has-[:checked]:border-blue-500 has-[:checked]:bg-blue-600/20 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-blue-400">
+                            <input
+                                type="checkbox"
+                                name={group.name}
+                                value={option}
+                                data-testid={`${group.name}-option`}
+                                class="h-4 w-4 accent-blue-500"
+                            />
+                            <span>{option}</span>
+                        </label>
+                    ))}
+                </div>
+            </fieldset>
+        ))
+    }
+    <div class="sm:col-span-2 flex flex-wrap items-center justify-between gap-4">
+        <p class="text-sm text-slate-300" role="status" aria-live="polite" data-testid="results-count"></p>
+        <button
+            type="reset"
+            data-testid="filters-reset"
+            class="rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
+        >
+            Reset filters
+        </button>
+    </div>
+</form>
