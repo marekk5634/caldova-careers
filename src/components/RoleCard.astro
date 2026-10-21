@@ -1,7 +1,7 @@
 ---
 import type { Job } from '../types/job';
 import Tag from './Tag.astro';
-import { formatPostedDate } from '../lib/jobs';
+import { formatPostedDate, getLocationRegion } from '../lib/jobs';
 
 interface Props {
     job: Job;
@@ -16,6 +16,7 @@ const { job } = Astro.props;
     data-testid="role-card"
     data-job-id={job.slug}
     data-department={job.department}
+    data-region={getLocationRegion(job.location)}
 >
     <div class="p-6">
         <h3

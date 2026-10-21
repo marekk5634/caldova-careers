@@ -3,7 +3,8 @@ import { getCollection } from 'astro:content';
 import Layout from '../layouts/Layout.astro';
 import RoleCard from '../components/RoleCard.astro';
 import EmptyState from '../components/EmptyState.astro';
-import { sortByNewest } from '../lib/jobs';
+import RoleFilters from '../components/RoleFilters.astro';
+import { sortByNewest, getDepartments, getLocationRegions } from '../lib/jobs';
 import type { Job } from '../types/job';
 
 export const prerender = true;
@@ -12,6 +13,8 @@ const entries = await getCollection('jobs');
 const jobs: Job[] = sortByNewest(
     entries.map((entry) => ({ slug: entry.id, ...entry.data })),
 );
+const departments = getDepartments(jobs);
+const regions = getLocationRegions(jobs);
 ---
 
 <Layout title="Caldova Careers — Open roles">
@@ -29,12 +32,86 @@ const jobs: Job[] = sortByNewest(
     {jobs.length === 0 ? (
       <EmptyState text="There are no open roles right now. Check back soon." />
     ) : (
+      <RoleFilters departments={departments} regions={regions} />
       <div
         class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
         data-testid="roles-grid"
       >
         {jobs.map((job) => <RoleCard job={job} />)}
       </div>
+      <div id="filtered-empty-state" hidden class="mt-6">
+        <EmptyState>
+          <p data-testid="empty-state-text" class="text-slate-300 mb-4">
+            No roles match your filters. Reset the filters to see all open roles.
+          </p>
+          <button
+            type="reset"
+            form="role-filters-form"
+            data-testid="empty-state-reset"
+            class="rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+          >
+            Reset filters
+          </button>
+        </EmptyState>
+      </div>
     )}
   </div>
 </Layout>
+
+<script>
+  import { filterJobs } from '../lib/jobs';
+  import type { Job } from '../types/job';
+
+  /** Filter form containing the department and location checkboxes. */
+  const form = document.querySelector<HTMLFormElement>('[data-testid="role-filters"]');
+  const cards = [...document.querySelectorAll<HTMLElement>('[data-testid="role-card"]')];
+  const emptyState = document.getElementById('filtered-empty-state');
+  const resultsCount = document.querySelector<HTMLElement>('[data-testid="results-count"]');
+
+  /** Minimal job records built from card data attributes for `filterJobs`. */
+  const jobs = cards.map(
+    (card) =>
+      ({
+        slug: card.dataset.jobId ?? '',
+        department: card.dataset.department ?? '',
+        location: card.dataset.region ?? '',
+      }) as Job,
+  );
+
+  /**
+   * Read the checked values of a checkbox group.
+   *
+   * @param name - The checkbox group's `name` attribute.
+   * @returns The values of the checked options.
+   */
+  function readSelected(name: string): string[] {
+    if (!form) return [];
+    return [...form.querySelectorAll<HTMLInputElement>(`input[name="${name}"]:checked`)].map(
+      (input) => input.value,
+    );
+  }
+
+  /**
+   * Show only matching role cards and update the empty state and result count.
+   *
+   * @param selection - The selected departments and regions.
+   */
+  function applyFilters(selection: { departments: string[]; regions: string[] }): void {
+    const visible = new Set(filterJobs(jobs, selection).map((job) => job.slug));
+    cards.forEach((card) => {
+      card.style.display = visible.has(card.dataset.jobId ?? '') ? '' : 'none';
+    });
+    if (emptyState) emptyState.hidden = visible.size > 0;
+    if (resultsCount) {
+      resultsCount.textContent = `Showing ${visible.size} of ${cards.length} roles`;
+    }
+  }
+
+  if (form) {
+    form.addEventListener('change', () =>
+      applyFilters({ departments: readSelected('department'), regions: readSelected('location') }),
+    );
+    form.addEventListener('reset', () => applyFilters({ departments: [], regions: [] }));
+    applyFilters({ departments: readSelected('department'), regions: readSelected('location') });
+  }
+</script>

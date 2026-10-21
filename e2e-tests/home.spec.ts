@@ -52,3 +52,47 @@ test.describe('Open roles listing', () => {
         expect(results.violations).toEqual([]);
     });
 });
+
+test.describe('Role filters', () => {
+    /** Locate all role cards on the page. */
+    const cards = (page: import('@playwright/test').Page) => page.locator('[data-testid="role-card"]');
+    /** Locate a filter checkbox by group ("department" or "location") and label. */
+    const option = (page: import('@playwright/test').Page, group: string, name: string) =>
+        page.getByTestId(`${group}-filter`).getByRole('checkbox', { name, exact: true });
+
+    test('filters by department, location, and a combination', async ({ page }) => {
+        await page.goto('/');
+
+        await test.step('department only', async () => {
+            await option(page, 'department', 'Finance').check();
+            await expect(cards(page).and(page.locator(':visible'))).toHaveCount(2);
+            await expect(page.getByTestId('results-count')).toContainText('Showing 2 of');
+        });
+
+        await test.step('multiple departments', async () => {
+            await option(page, 'department', 'Marketing').check();
+            await expect(cards(page).and(page.locator(':visible'))).toHaveCount(3);
+        });
+
+        await test.step('reset, then location only', async () => {
+            await page.getByTestId('filters-reset').click();
+            await expect(cards(page).and(page.locator(':visible'))).toHaveCount(expectedRoleCount);
+            await option(page, 'location', 'Remote').check();
+            await expect(cards(page).and(page.locator(':visible'))).toHaveCount(2);
+        });
+
+        await test.step('department OR location', async () => {
+            await option(page, 'department', 'Marketing').check();
+            await expect(cards(page).and(page.locator(':visible'))).toHaveCount(3);
+        });
+    });
+
+    test('resets filters and has accessible controls', async ({ page }) => {
+        await page.goto('/');
+        await option(page, 'department', 'Finance').check();
+        await page.getByTestId('filters-reset').click();
+        await expect(option(page, 'department', 'Finance')).not.toBeChecked();
+        await expect(cards(page).and(page.locator(':visible'))).toHaveCount(expectedRoleCount);
+        await expect(page.getByTestId('empty-state')).toBeHidden();
+    });
+});
